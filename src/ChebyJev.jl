@@ -1,18 +1,52 @@
 module ChebyJev
 
 using Oscar
+using JuMP
+
+#############
 
 # ============================================================
 # ============================================================
-# Internal Functions
+# Exported Functions
 # ============================================================
+# ============================================================
+
+export qbasematrix,
+       zbasematrix,
+       qpositiveroots,
+       zpositiveroots,
+       qweightmatrix,
+       zweightmatrix,
+       qhighestroot,
+       zhighestroot,
+       funddom_vertex_coefficients,
+       qweylgroupgen,
+       zweylgroupgen,
+       orbitcardinality,
+       weyllength,
+       steinbergweight,
+       pull,
+       orbit,
+       chebyshevpolynomial,
+       chebyshevlevel,
+       fundamentalinvariant,
+       invariantrewrite,
+       tmomentmatrix,
+       tlocalizedmomentmatrix,
+       chromatic_euclidean_voronoi_sdp_bound,
+       chromatic_euclidean_voronoi_sdp_data
+
+
+
+# ============================================================
+# 0. Helper Functions
 # ============================================================
 
 """
     leftrightinverse(M)
 
 Compute a left or right inverse depending on the shape of the matrix.
-
+Matrix must have full row or column rank.
 - If rows <= columns, returns a left inverse: (M*M')^-1 * M
 - If rows >= columns, returns a right inverse: M'*(M*M')^-1
 """
@@ -67,42 +101,13 @@ function esp(L::Vector, r::Int)
     return e[r+1]
 end
 
-#############
 
-# ============================================================
-# ============================================================
-# Exported Functions
-# ============================================================
-# ============================================================
-
-export qbasematrix,
-       zbasematrix,
-       qpositiveroots,
-       zpositiveroots,
-       qweightmatrix,
-       zweightmatrix,
-       qhighestroot,
-       zhighestroot,
-       qweylgroupgen,
-       zweylgroupgen,
-       orbitcardinality,
-       weyllength,
-       steinbergweight,
-       pull,
-       orbit,
-       chebyshev,
-       fundamental_invariant,
-       invariant_rewrite,
-       moment_matrix_T,
-       localized_moment_matrix_T,
-       chromatic_sdp_bound,
-       chromatic_sdp_data
 
 # ============================================================
 # 1. Basics
 # ============================================================
 
-function qtozcoords(Type::Symbol, n::Int, M)
+function q_to_z_coords(Type::Symbol, n::Int, M)
 
     W = qweightmatrix(Type,n)
     L = leftrightinverse(W)
@@ -130,7 +135,7 @@ end
 Return the matrix whose columns are the simple roots of the
 root system of type `Type` and rank `n`.
 
-Each column is a simple root vector.
+The output is a QQ matrix.
 """
 function qbasematrix(Type::Symbol, n::Int)
     roots = []
@@ -203,7 +208,7 @@ The output is an Int64 matrix.
 """
 function zbasematrix(Type::Symbol, n::Int)
 
-    return qtozcoords(Type,n,qbasematrix(Type,n))
+    return q_to_z_coords(Type,n,qbasematrix(Type,n))
 
 end
 
@@ -214,6 +219,8 @@ end
 
 Return a matrix whose columns are the positive roots of the
 root system of type `Type` and rank `n`.
+
+The output is a QQ matrix.
 """
 function qpositiveroots(Type::Symbol, n::Int)
     B = qbasematrix(Type,n)
@@ -298,7 +305,7 @@ The output is an Int64 matrix.
 """
 function zpositiveroots(Type::Symbol, n::Int)
 
-    return qtozcoords(Type,n,qpositiveroots(Type,n))
+    return q_to_z_coords(Type,n,qpositiveroots(Type,n))
 
 end
 
@@ -310,8 +317,7 @@ end
 Return the matrix whose columns are the fundamental weights of the
 root system of type `Type` and rank `n`.
 
-Columns correspond to fundamental weights. Returns a `Nemo.QQMatrix`
-to be consistent with `qbasematrix`.
+The output is a QQ matrix.
 """
 function qweightmatrix(Type::Symbol, n::Int)
 
@@ -337,7 +343,7 @@ The output is the Int64 identity matrix.
 """
 function zweightmatrix(Type::Symbol, n::Int)
 
-    return qtozcoords(Type,n,qweightmatrix(Type,n))
+    return q_to_z_coords(Type,n,qweightmatrix(Type,n))
 
 end
 
@@ -410,7 +416,7 @@ function zhighestroot(Type::Symbol, n::Int)
     v = qhighestroot(Type,n)
     M = matrix(QQ, length(v), 1, v)
 
-    Z = qtozcoords(Type,n,M)
+    Z = q_to_z_coords(Type,n,M)
 
     return [Z[i,1] for i in 1:size(Z,1)]
 
@@ -419,7 +425,7 @@ end
 #############
 
 """
-    vertexfunddomcoefficient(Type::Symbol, n::Int)
+    funddom_vertex_coefficients(Type::Symbol, n::Int)
 
 Return the list of scalar divisors defining the vertices of the
 fundamental domain.
@@ -427,7 +433,7 @@ fundamental domain.
 The output consists of the coefficients of the highest root with
 respect to the fundamental weights, followed by 1.
 """
-function vertexfunddomcoefficient(Type::Symbol, n::Int)
+function funddom_vertex_coefficients(Type::Symbol, n::Int)
 
     theta = qhighestroot(Type,n)
     W = qweightmatrix(Type,n)
@@ -451,7 +457,7 @@ function chebyshevlevel(Type::Symbol, n::Int, l::Int)
         return CHEBYSHEV_LEVEL_CACHE[key]
     end
 
-    Ffull = vertexfunddomcoefficient(Type,n)
+    Ffull = funddom_vertex_coefficients(Type,n)
     F = Ffull[1:n]
 
     levelscale = minimum(F)
@@ -548,8 +554,6 @@ end
     weylgrouporder(Type::Symbol, n::Int)
 
 Return the order of the Weyl group of the specified type and rank.
-
-Computed as the product of the invariant degrees.
 """
 function weylgrouporder(Type::Symbol, n::Int)
     prod(invariantdegrees(Type,n))
@@ -1405,7 +1409,7 @@ end
 #########
 
 """
-    chebyshev(Type::Symbol, alpha::Vector{Int64})
+    chebyshevpolynomial(Type::Symbol, alpha::Vector{Int64})
 
 Return the generalized Chebyshev polynomial indexed by `alpha`.
 
@@ -1413,7 +1417,7 @@ The input `alpha` is given in coordinates with respect to the basis of
 fundamental weights. The polynomial is computed in variables z1,...,zn
 over QQ.
 """
-function chebyshev(Type::Symbol, alpha::Vector{Int64})
+function chebyshevpolynomial(Type::Symbol, alpha::Vector{Int64})
 
     n = length(alpha)
     R, z, cache = chebyshevcontext(Type,n)
@@ -1448,11 +1452,11 @@ function chebyshev(Type::Symbol, alpha::Vector{Int64})
     @assert coeff_beta != 0
 
     # numerator: multiply T_gamma * T_base in z-variables
-    numerator = chebyshev(Type, gamma) * chebyshev(Type, base)
+    numerator = chebyshevpolynomial(Type, gamma) * chebyshevpolynomial(Type, base)
 
     for (k, c) in M
         if k != Tuple(beta)
-            numerator -= c * chebyshev(Type, collect(k))
+            numerator -= c * chebyshevpolynomial(Type, collect(k))
         end
     end
 
@@ -1464,7 +1468,7 @@ end
 
 #########
 
-function tbasis_to_z(Type::Symbol, F::TBASIS_ELEM)
+function t_to_z_basis(Type::Symbol, F::TBASIS_ELEM)
 
     n = length(first(keys(F)))
 
@@ -1473,7 +1477,7 @@ function tbasis_to_z(Type::Symbol, F::TBASIS_ELEM)
     out_z = Rz(0)
 
     for (alpha,c) in F
-        out_z += Rz(c) * chebyshev(Type, collect(alpha))
+        out_z += Rz(c) * chebyshevpolynomial(Type, collect(alpha))
     end
 
     return out_z
@@ -1536,7 +1540,7 @@ function fundinvcontext(n::Int)
 end
 
 # Fundamental invariants
-function fundamental_invariant(Type::Symbol, n::Int)
+function fundamentalinvariant(Type::Symbol, n::Int)
     R, xA, yA = fundinvcontext(n)
 
     if Type == :A
@@ -1661,7 +1665,7 @@ function is_multiplicative_invariant(Type::Symbol, f::QQMPolyRingElem)
     return true
 end
 
-function invariant_rewrite_T(Type::Symbol, f::QQMPolyRingElem)
+function invariantrewrite_T(Type::Symbol, f::QQMPolyRingElem)
 
     if !is_multiplicative_invariant(Type, f)
         error("Input polynomial is not a multiplicative invariant")
@@ -1701,24 +1705,24 @@ function invariant_rewrite_T(Type::Symbol, f::QQMPolyRingElem)
 
 end
 
-function invariant_rewrite_z(Type::Symbol, f::QQMPolyRingElem)
+function invariantrewrite_z(Type::Symbol, f::QQMPolyRingElem)
 
     if !is_multiplicative_invariant(Type, f)
         error("Input polynomial is not a multiplicative invariant")
     end
 
-    return tbasis_to_z(Type,invariant_rewrite_T(Type,f))
+    return t_to_z_basis(Type,invariantrewrite_T(Type,f))
 
 end
 
-function invariant_rewrite(Type::Symbol, f::QQMPolyRingElem)
+function invariantrewrite(Type::Symbol, f::QQMPolyRingElem)
 
     if !is_multiplicative_invariant(Type, f)
         error("Input polynomial is not a multiplicative invariant")
     end
 
-    out_T = invariant_rewrite_T(Type,f)
-    out_z = invariant_rewrite_z(Type,f)
+    out_T = invariantrewrite_T(Type,f)
+    out_z = invariantrewrite_z(Type,f)
 
     return (out_T,out_z)
 
@@ -1784,7 +1788,7 @@ end
 
 #############
 
-function moment_matrix_T(Type::Symbol, n::Int, d::Int)
+function tmomentmatrix(Type::Symbol, n::Int, d::Int)
 
     BT = chebyshevbasis_upto(Type,n,d)
 
@@ -1802,13 +1806,13 @@ function moment_matrix_T(Type::Symbol, n::Int, d::Int)
 
 end
 
-function localized_moment_matrix_T(Type::Symbol, n::Int, d::Int)
+function tlocalizedmomentmatrix(Type::Symbol, n::Int, d::Int)
 
     if !(Type in (:B,:C,:D,:G))
         error("This function is implemented only for types B, C, D")
     end
 
-    MT = moment_matrix_T(Type,n,d)
+    MT = tmomentmatrix(Type,n,d)
 
     N = size(MT,1)
 
@@ -1844,11 +1848,7 @@ end
 
 #############
 
-using JuMP
-using MosekTools
-using SCS
-
-function chromatic_sdp_bound(Type::Symbol, n::Int, d::Int, r::Int, solver)
+function chromatic_euclidean_voronoi_sdp_bound(Type::Symbol, n::Int, d::Int, r::Int, solver)
 
     if Type in (:B, :C)
         D = n
@@ -1864,8 +1864,8 @@ function chromatic_sdp_bound(Type::Symbol, n::Int, d::Int, r::Int, solver)
         error("Need d >= D")
     end
 
-    M = moment_matrix_T(Type, n, d)
-    LM = localized_moment_matrix_T(Type, n, d - D)
+    M = tmomentmatrix(Type, n, d)
+    LM = tlocalizedmomentmatrix(Type, n, d - D)
 
     A = coefficient_matrices_T(M)
     B = coefficient_matrices_T(LM)
@@ -1953,9 +1953,117 @@ end
 
 #############
 
-#using LinearAlgebra
+function chromatic_lattice_sdp_bound(Type::Symbol, n::Int, d::Int, solver)
 
-function chromatic_sdp_data(Type::Symbol, n::Int, d::Int, r::Int; folder::String="/mnt/c/Users/Dr. Tobias Metzlaff/Documents/Mathematics/Projects/YAND/SDP/ChebyJev/Chromatic")
+    if Type in (:B, :C)
+        D = n
+    elseif Type == :D && iseven(n)
+        D = n
+    elseif Type == :G && n == 2
+        D = 3
+    else
+        error("Implemented only for Bn, Cn, D2n, and G2")
+    end
+
+    if d < D
+        error("Need d >= D")
+    end
+
+    M = tmomentmatrix(Type, n, d)
+    LM = tlocalizedmomentmatrix(Type, n, d - D)
+
+    A = coefficient_matrices_T(M)
+    B = coefficient_matrices_T(LM)
+
+    NA = size(first(values(A)), 1)
+    NB = size(first(values(B)), 1)
+
+    BT = chebyshevbasis_upto(Type, n, 2*d)
+    all_indices = [Tuple(alpha) for alpha in BT]
+
+    zero_key = Tuple(zeros(Int64,n))
+    S = [Tuple(zhighestroot(Type,n))]
+    complement = setdiff(all_indices, union(S, Set([zero_key])))
+
+    A0 = get(A, zero_key, zeros(QQ,NA,NA))
+    B0 = get(B, zero_key, zeros(QQ,NB,NB))
+
+    model = Model(solver.Optimizer)
+
+    @variable(model, XA[1:NA,1:NA], PSD)
+    @variable(model, XB[1:NB,1:NB], PSD)
+
+
+
+    @objective(model, Max,
+        - sum(Float64(A0[i,j]) * XA[i,j] for i in 1:NA, j in 1:NA)
+        - sum(Float64(B0[i,j]) * XB[i,j] for i in 1:NB, j in 1:NB)
+    )
+
+
+
+    # Precompute the sums of A_alpha and B_alpha over alpha in S
+    A_sum = zeros(QQ, NA, NA)
+    B_sum = zeros(QQ, NB, NB)
+
+    for alpha in S
+        A_sum .+= get(A, alpha, zeros(QQ, NA, NA))
+        B_sum .+= get(B, alpha, zeros(QQ, NB, NB))
+    end
+
+    # Add the constraint using the summed matrices
+    @constraint(model,
+        sum(Float64(A_sum[i,j]) * XA[i,j] for i in 1:NA, j in 1:NA) +
+        sum(Float64(B_sum[i,j]) * XB[i,j] for i in 1:NB, j in 1:NB)
+        == 1
+    )
+
+
+
+    for alpha in S
+
+        Aalpha = get(A, alpha, zeros(QQ,NA,NA))
+        Balpha = get(B, alpha, zeros(QQ,NB,NB))
+
+        expr =
+            sum(Float64(Aalpha[i,j]) * XA[i,j] for i in 1:NA, j in 1:NA) +
+            sum(Float64(Balpha[i,j]) * XB[i,j] for i in 1:NB, j in 1:NB)
+
+        @constraint(model, expr >= 0)
+
+    end
+
+
+
+    for beta in complement
+
+        Abeta = get(A, beta, zeros(QQ,NA,NA))
+        Bbeta = get(B, beta, zeros(QQ,NB,NB))
+
+        expr =
+            sum(Float64(Abeta[i,j]) * XA[i,j] for i in 1:NA, j in 1:NA) +
+            sum(Float64(Bbeta[i,j]) * XB[i,j] for i in 1:NB, j in 1:NB)
+
+        @constraint(model, expr == 0)
+
+    end
+
+    optimize!(model)
+
+    opt = objective_value(model)
+
+    return 1 - 1/opt
+
+end
+
+#############
+
+function chromatic_euclidean_voronoi_sdp_data(
+    Type::Symbol, 
+    n::Int, 
+    d::Int, 
+    r::Int; 
+    folder::String = pwd())
 
     # Compute moment matrices
     if Type in (:B,:C)
@@ -1971,8 +2079,8 @@ function chromatic_sdp_data(Type::Symbol, n::Int, d::Int, r::Int; folder::String
         error("Need d >= D")
     end
 
-    M = ChebyJev.moment_matrix_T(Type,n,d)
-    LM = ChebyJev.localized_moment_matrix_T(Type,n,d-D)
+    M = tmomentmatrix(Type,n,d)
+    LM = tlocalizedmomentmatrix(Type,n,d-D)
 
     A = ChebyJev.coefficient_matrices_T(M)
     B = ChebyJev.coefficient_matrices_T(LM)
@@ -1985,6 +2093,126 @@ function chromatic_sdp_data(Type::Symbol, n::Int, d::Int, r::Int; folder::String
 
     zero_key = Tuple(zeros(Int64,n))
     S = [Tuple(alpha) for alpha in ChebyJev.chebyshevlevel(Type,n,r)]
+    complement = setdiff(all_indices, union(S, Set([zero_key])))
+
+    A0 = get(A, zero_key, zeros(QQ,NA,NA))
+    B0 = get(B, zero_key, zeros(QQ,NB,NB))
+
+    # ----------------------
+    # Step 3: SDPA file
+    # ----------------------
+
+    function write_sdpa_block_entries(io, mat_idx::Int, block_idx::Int, M)
+
+        rows, cols = size(M)
+
+        for i in 1:rows
+            for j in i:cols
+                val = Float64(M[i,j])
+                if val != 0.0
+                    println(io, "$mat_idx $block_idx $i $j $val")
+                end
+            end
+        end
+
+    end
+
+    filename = joinpath(folder, "Chromatic_$(Type)$(n)_$(d)_$(r).dat-s")
+
+    open(filename, "w") do io
+
+        nconstr = 1 + length(S) + length(complement)
+        nblocks = 2 + length(S)
+
+        println(io, nconstr)
+        println(io, nblocks)
+        println(io, join(vcat([NA, NB], fill(1, length(S))), " "))
+
+        bvec = zeros(Float64, nconstr)
+        bvec[1] = 1.0
+        println(io, join(bvec, " "))
+
+        A0 = get(A, zero_key, zeros(QQ, NA, NA))
+        B0 = get(B, zero_key, zeros(QQ, NB, NB))
+
+        write_sdpa_block_entries(io, 0, 1, -A0)
+        write_sdpa_block_entries(io, 0, 2, -B0)
+
+        constr_idx = 1
+
+        # Constraint 1:
+        # sum_{alpha in S} <A_alpha,XA> + <B_alpha,XB> = 1
+        for alpha in S
+            write_sdpa_block_entries(io, constr_idx, 1, get(A, alpha, zeros(QQ, NA, NA)))
+            write_sdpa_block_entries(io, constr_idx, 2, get(B, alpha, zeros(QQ, NB, NB)))
+        end
+
+        constr_idx += 1
+
+        for (sidx, alpha) in enumerate(S)
+
+            write_sdpa_block_entries(io, constr_idx, 1, get(A, alpha, zeros(QQ, NA, NA)))
+            write_sdpa_block_entries(io, constr_idx, 2, get(B, alpha, zeros(QQ, NB, NB)))
+
+            slack_block = 2 + sidx
+            println(io, "$constr_idx $slack_block 1 1 -1.0")
+
+            constr_idx += 1
+
+        end
+
+        for beta in complement
+
+            write_sdpa_block_entries(io, constr_idx, 1, get(A, beta, zeros(QQ, NA, NA)))
+            write_sdpa_block_entries(io, constr_idx, 2, get(B, beta, zeros(QQ, NB, NB)))
+
+            constr_idx += 1
+
+        end
+
+    end
+
+    println("SDP data saved to ", filename)
+    return filename
+end
+
+#############
+
+function chromatic_lattice_sdp_data(
+    Type::Symbol, 
+    n::Int, 
+    d::Int, 
+    r::Int; 
+    folder::String = pwd())
+
+    # Compute moment matrices
+    if Type in (:B,:C)
+        D = n
+    elseif Type == :D && iseven(n)
+        D = n
+    elseif Type == :G && n == 2
+        D = 3
+    else
+        error("Implemented only for Bn, Cn, D2n, and G2")
+    end
+    if d < D
+        error("Need d >= D")
+    end
+
+    M = tmomentmatrix(Type,n,d)
+    LM = tlocalizedmomentmatrix(Type,n,d-D)
+
+    A = ChebyJev.coefficient_matrices_T(M)
+    B = ChebyJev.coefficient_matrices_T(LM)
+
+    NA = size(first(values(A)),1)
+    NB = size(first(values(B)),1)
+
+    BT = ChebyJev.chebyshevbasis_upto(Type,n,2*d)
+    all_indices = [Tuple(alpha) for alpha in BT]
+
+    zero_key = Tuple(zeros(Int64,n))
+    S = [Tuple(zhighestroot(Type,n))]
     complement = setdiff(all_indices, union(S, Set([zero_key])))
 
     A0 = get(A, zero_key, zeros(QQ,NA,NA))
