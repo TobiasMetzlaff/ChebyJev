@@ -5,10 +5,10 @@ ChebyJev is an
 Julia version of the Maple package 
 [GeneralizedChebyshev](https://github.com/TobiasMetzlaff/GeneralizedChebyshev). 
 
-While generalized Chebyshev polynomials have wonderful properties for symbolical and numerical computation, 
+While generalized Chebyshev polynomials have wonderful properties for symbolical and numerical computations, 
 their definition is based on the theory of root systems. 
 This package aims to enable efficient computations for this context, 
-in particular, for Weyl groups actions, multiplicative (co-)invariants and symmetry reduction. 
+in particular, for Weyl group actions, multiplicative (co-)invariants and symmetry reduction. 
 
 
 
