@@ -34,7 +34,9 @@ export qbasematrix,
        tmomentmatrix,
        tlocalizedmomentmatrix,
        chromatic_euclidean_voronoi_sdp_bound,
-       chromatic_euclidean_voronoi_sdp_data
+       chromatic_euclidean_voronoi_sdp_data,
+       chromatic_lattice_sdp_bound,
+       chromatic_lattice_sdp_data
 
 
 
