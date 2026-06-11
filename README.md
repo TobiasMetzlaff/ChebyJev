@@ -46,6 +46,10 @@ Algorithmic theory for Chebyshev polynomials and Weyl group orbits has been deve
 Evelyne Hubert and Michael Singer in [6] and [7]. 
 I am particularly grateful to Evelyne Hubert for suggestions, corrections and explanations concerning the implementation. 
 
+The idea to compute spectral bounds using polynomial optimization 
+was initiated by Christine Bachoc in discussions with Philippe Moustrou 
+and further developed with Cordian Riener through symmetry reduction. 
+
 
 
 ## References
