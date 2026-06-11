@@ -1,15 +1,37 @@
 # ChebyJev
-ChebyJev is the [OSCAR](https://www.oscar-system.org/)-based Julia version of the Maple package [GeneralizedChebyshev](https://github.com/TobiasMetzlaff/GeneralizedChebyshev). 
+ChebyJev is the 
+[OSCAR](https://www.oscar-system.org/)-based 
+Julia version of the Maple package 
+[GeneralizedChebyshev](https://github.com/TobiasMetzlaff/GeneralizedChebyshev). 
 
-To install ChebyJev, run
+To install ChebyJev in Julia, run
 ```Julia
 using Pkg
 Pkg.add(url="https://github.com/TobiasMetzlaff/ChebyJev")
  ```
+For Windows users, 
+the [Linux Subsystem](https://learn.microsoft.com/en-us/windows/wsl/install) 
+is required in order to access the Oscar functionalities. 
 
 ## Dependencies
-- [OSCAR](https://www.oscar-system.org/)
-- [JuMP](https://github.com/jump-dev/JuMP.jl) (only for SDPs)
+- [OSCAR](https://www.oscar-system.org/) (for algebraic operations with Chebyshev polynomials)
+- [JuMP](https://github.com/jump-dev/JuMP.jl) (for semidefinite programming)
+
+## Basics
+Define the (irreducible) root system and its rank:
+
+```Julia
+using ChebyJev;
+Type,n = :A,2;
+```
+Display base, positive roots, fundamental weights, highest root and more over Q
+```Julia
+qbasematrix(Type,n)
+```
+or Z
+```Julia
+zbasematrix(Type,n)
+```
 
 ## References
 [1] [Optimization of trigonometric polynomials with crystallographic symmetry and spectral bounds for set avoiding graphs ](https://arxiv.org/abs/2303.09487)
